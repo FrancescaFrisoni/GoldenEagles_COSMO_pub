@@ -88,18 +88,21 @@ saveRDS(summary_pred_sure, "./uplift_classification/summarypredsure_15july26.rds
 # if not yet loaded:
 # summary_pred_sure <- readRDS("./uplift_classification/summarypredsure_15july26.rds")
 
-# removed area, vol, are rate, vol rate, hiniz and hfin above ellipsoid
-predictors <- names(summary_pred_sure[,c(26,29, 32:43, 46:53,58:84, 87:93,95:97)])
-
-# predictors
-# [1] "deltah"         "dist"           "duration"       "grSpeed_mean"   "h_min"          "h_max"          "vel_mean"       "vel_min"       
-# [9] "vel_max"        "turnangle_mean" "turnangle_sum"  "turnangle_var"  "turnangle_sd"   "n_turnChange"   "VedBA_mean"     "VedBA_sd"      
-# [17] "VedBA_max"      "VedBA_min"      "ODBA_mean"      "sdACCz_mean"    "sdACCz_max"     "sdACCz_min"     "yaw_mean"       "yaw_mean_abs"  
-# [25] "yaw_max"        "yaw_max_abs"    "yaw_min"        "yaw_min_abs"    "yaw_sum"        "yaw_sum_abs"    "yaw_sd"         "pitch_mean"    
-# [33] "pitch_mean_abs" "pitch_max"      "pitch_max_abs"  "pitch_min"      "pitch_min_abs"  "pitch_sum"      "pitch_sum_abs"  "pitch_sd"      
-# [41] "roll_mean"      "roll_mean_abs"  "roll_max"       "roll_max_abs"   "roll_min"       "roll_min_abs"   "roll_sum"       "roll_sum_abs"  
-# [49] "roll_sd"        "deltah_r"       "dist_r"         "turnangle_r"    "tilt_rad"       "yaw_sum_r"      "pitch_sum_r"    "roll_sum_r"    
-# [57] "n_circles"      "n_circles_r"    "turnChange_r"
+# predictor names explicitly
+predictors <- c(
+  "deltah", "dist", "duration", "grSpeed_mean", "h_min", "h_max",
+  "vel_mean", "vel_min", "vel_max", "turnangle_mean", "turnangle_sum",
+  "turnangle_var", "turnangle_sd", "n_turnChange", "VedBA_mean", "VedBA_sd",
+  "VedBA_max", "VedBA_min", "ODBA_mean", "sdACCz_mean", "sdACCz_max",
+  "sdACCz_min", "yaw_mean", "yaw_mean_abs", "yaw_max", "yaw_max_abs",
+  "yaw_min", "yaw_min_abs", "yaw_sum", "yaw_sum_abs", "yaw_sd",
+  "pitch_mean", "pitch_mean_abs", "pitch_max", "pitch_max_abs",
+  "pitch_min", "pitch_min_abs", "pitch_sum", "pitch_sum_abs", "pitch_sd",
+  "roll_mean", "roll_mean_abs", "roll_max", "roll_max_abs", "roll_min",
+  "roll_min_abs", "roll_sum", "roll_sum_abs", "roll_sd", "deltah_r",
+  "dist_r", "turnangle_r", "tilt_rad", "yaw_sum_r", "pitch_sum_r",
+  "roll_sum_r", "n_circles", "n_circles_r", "turnChange_r"
+)
 
 # dataset of predictors from summary_pred_sure to make them PC components
 predictors_dt <- summary_pred_sure[,c(predictors)] 

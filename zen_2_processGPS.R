@@ -237,7 +237,7 @@ saveRDS(df_clf, "GPS_1secBursts_onlySoaringObservations_2020&2023_segmID.rds")
 segm_ls <-split(df_clf, df_clf$unique_segmID) 
 
 # First lapply to calculate dist, duration of each segment
-# area and volume of the segments was in the end not calculated
+# the name of the segmdf_areavol variable is arbitrary, area and volume are not calculated
 segmdf_areavol <- as.data.frame(rbindlist(
   lapply(segm_ls, function(b){
     #b <- segm_ls[[2]]

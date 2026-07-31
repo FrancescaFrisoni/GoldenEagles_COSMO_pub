@@ -46,13 +46,13 @@ gps_segm <- gps_complete[gps_complete$unique_segmID %in% circ$unique_segmID,]
 #___________________________________________________________
 #### ERA5 data to estimate wind components on eagles points
 
-# Load data from era5 point by point
-era1 <- read.csv("./envdataERA5_2020_2023/annotation_csv/env_new_1_24july.csv-6091120100567852935.csv")
-era2 <- read.csv("./envdataERA5_2020_2023/annotation_csv/env_new_2_24july.csv-8816069588445800851.csv")
+# Load data from COSMO point by point
+# COSMO
+env_cosmo <- read.csv("/home/francesca/ownCloud/ETH_sharedFolder/GPS_allsoaringpoints_areavol_subset_annotated_fullwind.csv") 
 
-era <- rbind(era1,era2)
-segm_era <- merge(gps_segm, era, by="event_id")  # gps_segm are all the gps points from the GPS dataset that are in circ
-# the points with U,V and W are 204057 because result of Tom's interpolation every 2nd or 3rd point
+segm_era <- merge(gps_segm, env_cosmo[, c("event_id", "V","U","W")], by = "event_id", all.x = TRUE) 
+# gps_segm are all the gps points from the GPS dataset that are in circ, 616738
+# the points with U,V and W are 203995 because result of Tom's interpolation every 2nd or 3rd point
 
 #______________________________________
 #### Direction of the soaring segments 
@@ -106,7 +106,7 @@ wind.support_rad <- function(u, v, dg_rad){
   return(cos(beta) * sqrt(u * u + v * v))    # ws = cos(beta)*Vw
 }
 
-ws <- wind.support_rad(segm_era$ECMWF.ERA5.SL.Wind..10.m.above.Ground.U.Component., segm_era$ECMWF.ERA5.SL.Wind..10.m.above.Ground.V.Component., segm_era_dir$dirfromrad)
+ws <- wind.support_rad(segm_era$U, segm_era$V, segm_era_dir$dirfromrad)
 
 #  calculate cross-wind
 cross.wind_rad <- function(u, v, dg_rad){
@@ -119,7 +119,7 @@ cross.wind_rad <- function(u, v, dg_rad){
   return(abs(sin(beta) * sqrt(u * u + v * v)))  # wc = |sin(beta)*Vw|
 }
 
-cw <- cross.wind_rad(segm_era$ECMWF.ERA5.SL.Wind..10.m.above.Ground.U.Component., segm_era$ECMWF.ERA5.SL.Wind..10.m.above.Ground.V.Component., segm_era_dir$dirfromrad)
+cw <- cross.wind_rad(segm_era$U, segm_era$V, segm_era_dir$dirfromrad)
 
 # calculate airspeed - will enter the equation of sink speed
 airspeed <- function(Vg, Ws, Cw) {
@@ -168,7 +168,8 @@ sink_speed <- function(V, span, area, mass, rho=0.957, CDo=0.1, k=1.1, phi=25, g
 traj_all <- segm_era
 
 # Create date object
-traj_all$date <- as.Date(substr(traj_all$timestamp.x, 1, 10))
+# traj_all$date <- as.Date(substr(traj_all$timestamp.x, 1, 10))
+traj_all$date <- as.Date(substr(traj_all$timestamp, 1, 10))
 
 # Apply sinking_speed calculation to all eagle data points
 Vz_arr <- matrix(0, nrow = nrow(traj_all), ncol = nrow(bird_meas))
@@ -206,8 +207,8 @@ W_df$mean <- rowMeans(W_eagle, na.rm=T)
 
 traj_all$W_eagle <- W_df$mean
 
-print(length(traj_all$W_eagle)) #204057
-print(length(unique(traj_all$date))) #334
+print(sum(!is.na(traj_all$W_eagle)))  # number of non-NA values 203995
+print(sum(!is.na(unique(traj_all$date))))#347
 
 
 ##### 4. COMPARISON OF W BETWEEN EAGLES AND COSMO #####
@@ -216,55 +217,57 @@ print(length(unique(traj_all$date))) #334
 # Check and remove outliers in W calculated from eagles
 
 summary(traj_all$W_eagle)
-# Min.  1st Qu.   Median     Mean  3rd Qu.     Max.
-# -15.051   2.601   3.456   3.666   4.466 503.572 
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.     NAs 
+# -12.163   2.805   3.775   4.293   5.050 263.656  412743 
 
 quantile(traj_all$W_eagle, seq(0, 1, 0.005), na.rm = TRUE)
 #     0.0%        0.5%        1.0%        1.5%        2.0%        2.5%        3.0%       
-# -15.0508523  -0.4259085   0.2070554   0.5142497   0.7167664   0.8813429   1.0088904 
+# -12.1625590  -0.1886453   0.3911828   0.6745198   0.8769451   1.0258050   1.1495862
 # 98.0%       98.5%       99.0%       99.5%  100.0% 
-#  7.8353086   8.3568444   9.1497179  10.8367074 503.5720205 
+#  11.7890727  12.9974257 15.0233614  18.8514137 263.6558915 
 
 # the very extreme values sit within 0.05%
 quantile(traj_all$W_eagle, seq(0, 1, 0.0005), na.rm = TRUE)
  #     0.00%        0.05%         0.10%         
- #  -15.050852277  -3.614929282  -2.386068165
- #     99.95%   100.00% -- apply tail(quantile) to check these
- # 23.61658 503.57202 
+ #  -12.16255902  -3.24233967  -2.15247620
+quantile(traj_all$W_eagle, seq(0.5, 1, 0.0005), na.rm = TRUE)
+ #    99.75%     99.80%     99.85%     99.90%     99.95%    100.00% 
+ #  23.551366  25.060155  27.289932  31.164860  39.669316 263.655891 
 
 # remove lower and upper 0.05% of data as outliers
-lower <- quantile(traj_all$W_eagle, 0.0005, na.rm = TRUE) #-3.61
-upper <- quantile(traj_all$W_eagle, 0.9995, na.rm = TRUE) #23.6
+lower <- quantile(traj_all$W_eagle, 0.0005, na.rm = TRUE) #-3.24
+upper <- quantile(traj_all$W_eagle, 0.9995, na.rm = TRUE) # 39.7
 
-traj_sub <- traj_all[traj_all$W_eagle > lower & traj_all$W_eagle < upper, ] # 203851
+traj_w <- traj_all[
+  !is.na(traj_all$W_eagle) &
+    traj_all$W_eagle > lower &
+    traj_all$W_eagle < upper,
+] # 203791 points
 
-# _______________________________
-# Load and merge ERA5 wind speed
-windera <- readRDS("/home/francesca/ownCloud/TesiFrancesca_UpliftClassification/Data/ERA5_wind_per_id.rds") 
-
-traj_sub_era <- left_join(traj_sub, windera, by = "event_id") 
-# ERA5_wind_speed -> is the synoptic vertical wind speed W of ERA5, not the horizontal from U and V
-# this value is not actively used here, but could be useful for synoptic comparisons at some point
-
-# _______________________________
-# Load and compare W from COSMO
-
-w_cosmo <- read.csv("/home/francesca/ownCloud/ETH_sharedFolder/GPS_allsoaringpoints_areavol_subset_annotated_fullwind.csv") # corrected july 26
-
-# comparison with W from COSMO -> merge the W column to the traj dataset by eventid
-traj_w <- merge(traj_sub_era, w_cosmo[, c("event_id", "W")], by = "event_id", all.x = TRUE) 
-saveRDS(traj_w, "./traj_weagle_cosmo_era5_july26.rds" )
+# _________________________________________________________________
+# Compare W (from COSMO) with W eagle, after having removed outliers
 
 summary(traj_w$W) #from COSMO: careful, the label of the column is exactly 'W'
-#          Min. 1st Qu.  Median    Mean       3rd Qu.    Max.    NA's 
-#   -6.638535 -0.138051  0.007987 -0.011732  0.165795  4.442057        72 
+#          Min. 1st Qu.  Median    Mean       3rd Qu.    Max.    
+#  -6.638535 -0.137951  0.008026 -0.011695  0.165881  4.454218
 
 summary(traj_w$W_eagle) # label of W from eagles is W_eagle
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# -3.590   2.602   3.456   3.646   4.465  23.504
+# -3.242   2.806   3.775   4.272   5.048  39.669 
 
 # ___________________________________________
 # Density plots of W between eagles and COSMO
+
+# Combine both variables to get a common range
+x_vals <- c(traj_w$W, traj_w$W_eagle)
+x_vals <- x_vals[!is.na(x_vals)]
+
+# remove long tails removing first and last 1% of the data considered the common range
+xlims <- quantile(x_vals, probs = c(0.005, 0.995))
+# 2.5% and 97.5th percentiles (central 95%)
+# xlims <- quantile(x_vals, probs = c(0.025, 0.975))
+# If 5th–95th percentiles, use: 
+# xlims <- quantile(x_vals, probs = c(0.05, 0.95))
 
 w <- ggplot(traj_w) +
   geom_density(aes(x = W, fill = "W COSMO"), alpha = 0.5) +
@@ -275,6 +278,7 @@ w <- ggplot(traj_w) +
     y = "Density",
     fill = "Variable"
   ) +
+  coord_cartesian(xlim = xlims) +  # <-- restrict view to central %
   theme_minimal() +
   theme(
     text = element_text(size = 30), 
@@ -282,9 +286,8 @@ w <- ggplot(traj_w) +
     axis.text = element_text(size = 30), 
     legend.title = element_text(size = 30),  
     legend.text = element_text(size = 30),  
-    legend.position = c(0.95, 0.95),      # x, y in [0,1], top-right corner. can be changed to legend.position = "bottom",
-    legend.justification = c(1, 1)         # anchors the legend box to that corner
-    # plot.title = element_text(hjust = 0.5, size = 16)  
+    legend.position = c(0.95, 0.95),
+    legend.justification = c(1, 1)
   )
 
 print(w)
@@ -302,7 +305,7 @@ saveRDS(w, file.path(directory, "figures_july26", "w_cosmo_eagle_solo.rds"))
 ## Load labelled dataset
 segm_pred_sure <- readRDS("./uplift_classification/segm_pred_sure_19035.rds")
 
-segm_df <- merge(traj_w, segm_pred_sure[,c("unique_segmID","uplift_type")], by="unique_segmID") # 158579
+segm_df <- merge(traj_w, segm_pred_sure[,c("unique_segmID","uplift_type")], by="unique_segmID") # 158576
 
 length(unique(segm_df$unique_segmID)) # 4448 segments with labelled uplift types
 
@@ -359,6 +362,16 @@ length(unique(segm_df$unique_segmID)) # 4448 segments with labelled uplift types
 
 traj_long <- tidyr::pivot_longer(segm_df, cols = c(W, W_eagle), names_to = "variable", values_to = "value")
 
+facet_labels <- c("orog" = "Orographic", "thermal" = "Thermal", "wave" = "Wave")
+
+# not applied limit on y axis, but could be done if need to zoom in 
+# # Combine both variables to get a common range for limits on axis y
+# y_vals <- c(traj_w$W, traj_w$W_eagle)
+# y_vals <- x_vals[!is.na(x_vals)]
+# 
+# # remove long tails removing first and last 0.1% of the data considered the common range
+# ylims <- quantile(x_vals, probs = c(0.001, 0.999))
+
 e <- ggplot(traj_long, aes(x = variable, y = value, fill = variable)) +
   geom_violin(trim = FALSE, alpha = 0.7) +
   facet_wrap(~ uplift_type, ncol = 3, labeller = labeller(uplift_type = facet_labels)) +
@@ -368,6 +381,7 @@ e <- ggplot(traj_long, aes(x = variable, y = value, fill = variable)) +
   labs(x = NULL,
        y = "Vertical Wind Speed [m s-1]",
        fill = "Variable") +
+  coord_cartesian(ylim = xlims) + #ylims) +  if want to restrict to a different %, for now decided to have a similar range to the previous plot
   theme_minimal() +
   theme(
     text = element_text(size = 30),  

@@ -13,6 +13,7 @@ library(scales)
 library(plotly)
 library(cowplot)
 library(webshot2)
+library(ggridges)
 
 setwd("/home/francesca/ownCloud/TesiFrancesca_UpliftClassification/Data")
 directory <- "/home/francesca/ownCloud/TesiFrancesca_UpliftClassification"
@@ -23,6 +24,12 @@ color_palette <- c(
   "thermal" = "#D55E00",
   "orog" = "#CC79A7", #"#6A0DAD"
   "wave" = "#0072B2"
+)
+
+color_palette_lab <- c(
+  "Thermal"    = "#D55E00",
+  "Orographic" = "#CC79A7", #"#6A0DAD"
+  "Wave"       = "#0072B2"
 )
 
 
@@ -45,6 +52,137 @@ pred_summary <- summary_pred_sure %>%
 plot(summary_pred_sure$deltah, summary_pred_sure$vel_mean)
 
 saveRDS(pred_summary, file = "./uplift_classification/pred_summary_tablemetricsbehav.rds")
+
+#___________________________________________
+#### Ridge plots for flight parameters ####
+
+# --- parameters to plot, in the order you want them to appear ---
+vars_to_keep <- c(
+  "h_min", "h_max",
+  "deltah", "dist", "duration",
+  "grSpeed_mean", "vel_mean",
+  # "turnangle_mean",
+  "n_turnChange",
+  # "n_circles", 
+  "n_circles_r",
+  "VedBA_mean", 
+  # "ODBA_mean", 
+  "sdACCz_mean", "tilt_rad",
+  "yaw_mean_abs", "pitch_mean_abs", "roll_mean_abs"
+)
+
+# readable axis/strip labels, matched 1:1 with vars_to_keep, written as plotmath
+# expressions (parsed via label_parsed):
+#  - the whole label is wrapped in bold(...) so boldness survives parsing
+#    (theme(strip.text = ..., face = "bold") alone isn't reliably respected
+#     once a label is a parsed expression rather than plain text)
+#  - units are always in square brackets "[ ]" for consistency, built with
+#    "[" and "]" as quoted string fragments joined via * (no-space concat)
+#    around the actual unit symbols/superscripts
+var_labels <- c(
+  h_min          = "bold(\"Minimum height above ground [m]\")",
+  h_max          = "bold(\"Maximum height above ground [m]\")",
+  deltah         = "bold(\"Vertical Displacement [m]\")",
+  dist           = "bold(\"Horizontal Displacement [m]\")",
+  duration       = "bold(\"Duration [sec]\")",
+  grSpeed_mean    = 'bold("Ground Speed [m s-1]")',
+  vel_mean       = 'bold("Vertical Speed [m s-1]")',
+  # grSpeed_mean   = "bold(\"Ground Speed [\"*m~s^{-1}*\"]\")", this is with the little s on top, if you want to change it later on for the journal in all the plots
+  # vel_mean       = "bold(\"Vertical Speed [\"*m~s^{-1}*\"]\")",
+  # turnangle_mean = "bold(\"Turning Angle [rad]\")",
+  n_turnChange   = "bold(\"Rate of change in headings\")",
+  # n_circles      = "bold(\"Number of circles\")",
+  n_circles_r    = "bold(\"Circling rate\")",
+  VedBA_mean     = "bold(\"VeDBA (raw values)\")",
+  # ODBA_mean      = "bold(\"ODBA (raw values)\")",
+  sdACCz_mean    = "bold(\"Standard Deviation of ACC-z axis\")",
+  tilt_rad       = "bold(\"Tilt [rad]\")",
+  yaw_mean_abs   = "bold(group('|', Yaw, '|')~\"[deg]\")",
+  pitch_mean_abs = "bold(group('|', Pitch, '|')~\"[deg]\")",
+  roll_mean_abs  = "bold(group('|', Roll, '|')~\"[deg]\")"
+)
+
+# map the raw pred values the display labels
+pred_recode <- c(thermal = "Thermal", orog = "Orographic", wave = "Wave")
+
+# --- reshape to long format: one row per (observation, parameter) ---
+df_long <- summary_pred_sure %>%
+  select(pred, all_of(vars_to_keep)) %>%
+  pivot_longer(-pred, names_to = "parameter", values_to = "value") %>%
+  filter(is.finite(value)) %>%
+  mutate(
+    pred = factor(unname(pred_recode[as.character(pred)]),
+                  levels = names(color_palette_lab)),
+    # bake the plotmath expression strings directly into the factor labels
+    parameter = factor(parameter, levels = vars_to_keep,
+                       labels = unname(var_labels[vars_to_keep]))
+  )
+
+# --- trim extreme outlier tails per parameter (computed across all pred groups) ---
+# keeps the bulk of each distribution centered instead of skewed by a few
+# extreme values (common in dist/duration/n_circles etc.)
+df_long <- df_long %>%
+  group_by(parameter) %>%
+  filter(
+    value >= quantile(value, 0.005, na.rm = TRUE),
+    value <= quantile(value, 0.995, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# --- ridge plot: 18 parameters arranged 3 columns x 5 rows, 3 ridges per facet ---
+ridge <-  ggplot(df_long, aes(x = value, y = pred, fill = pred)) +
+  geom_density_ridges(
+    alpha = 0.65,
+    scale = 1.7,          # controls how much ridges overlap vertically
+    rel_min_height = 0.005,
+    color = "white",
+    linewidth = 0.3
+  ) +
+  facet_wrap(
+    ~parameter,
+    scales = "free_x",   # y (pred categories) is identical across panels, so keep it shared;
+    # only x needs to be free since units/ranges differ per parameter
+    ncol = 3,
+    strip.position = "top",
+    labeller = label_parsed,
+    axes = "margins"     # only draw axis text on outer panels (left column gets the y labels,
+    # interior/right columns don't repeat them) -- needs ggplot2 >= 3.5.0
+  ) +
+  scale_fill_manual(
+    values = color_palette_lab) +
+  scale_x_continuous(expand = expansion(mult = c(0.05, 0.05))) +  # symmetric padding each side
+  coord_cartesian(clip = "off") +  # stop ridge curves / text descenders being clipped at panel edges
+  theme_ridges(font_size = 10, grid = FALSE) +
+  theme(
+    legend.position = "none",
+    # thin, light grid -- present but unobtrusive
+    panel.grid.major = element_line(color = "grey90", linewidth = 0.2),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    panel.border = element_blank(),
+    strip.background = element_blank(),
+    strip.text = element_text(size = 9, margin = margin(b = 3, t = 2, unit = "mm")),  # b = gap above panel; bump this up for more room
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text = element_text(size = 10),
+    axis.text.y = element_text(margin = margin(r = 3)),
+    axis.text.x = element_text(margin = margin(t = 3)),
+    panel.spacing.x = unit(1.2, "lines"),
+    panel.spacing.y = unit(1.4, "lines"),  # extra vertical room so ridge overlap + labels don't get clipped
+    plot.margin = margin(10, 12, 10, 14)  # increase left margin (4th value) for longer labels
+  )
+
+ridge
+
+# --- save as A4 portrait PDF, plus the ggplot object itself for later tuning ---
+ggsave(
+  file.path(directory, "figures_july26", "ridge_flightmetrics.pdf"),
+  plot = ridge, width = 210, height = 297, units = "mm", device = "pdf"
+)
+
+# save ggplot obj to reload if some fig tuning is necessary
+saveRDS(ridge, file.path(directory, "figures_july26", "ridge_flightmetrics.rds"))
+
 
 #____________________________________________________________
 # Trajectories visualization for orog, thermal and wave ####
@@ -152,6 +290,13 @@ for (f in all_files) {
 
 # ____________________________________
 #### Proportion of uplift used in 2023
+# out of the 19035 how many segments only in 2023?
+segm_pred_2023 <- segm_pred_sure %>%
+  filter(year == 2023)
+# 15367
+table(segm_pred_2023$pred)
+# orog thermal    wave 
+# 902   13697     768 
 
 ## proportions with written sample size on top of bars
 # 2023 for both mine and Tom's labelled datasets: 3 categories
@@ -202,7 +347,7 @@ range(therm_proportions) # 0.1474359 0.9679522
 orog_proportions <- segm_pred_data$proportion[segm_pred_data$type=="orog"]
 range(orog_proportions) # 0.0000000 0.1944954
 
-# Plot 2023: 2 categories (thermal vs dynamic)
+## Plot 2023: 2 categories (thermal vs dynamic)
 
 prepare_data_dynamic <- function(df, dataset_name) {
   df$month <- factor(lubridate::month(df$date), levels = 1:12, labels = month.name)
