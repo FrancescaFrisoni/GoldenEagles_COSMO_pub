@@ -262,8 +262,8 @@ summary(traj_w$W_eagle) # label of W from eagles is W_eagle
 x_vals <- c(traj_w$W, traj_w$W_eagle)
 x_vals <- x_vals[!is.na(x_vals)]
 
-# remove long tails removing first and last 1% of the data considered the common range
-xlims <- quantile(x_vals, probs = c(0.005, 0.995))
+# remove long tails removing first and last 0.5% of the data considered the common range
+xlims <- quantile(x_vals, probs = c(0.01, 0.99))
 # 2.5% and 97.5th percentiles (central 95%)
 # xlims <- quantile(x_vals, probs = c(0.025, 0.975))
 # If 5th–95th percentiles, use: 
@@ -364,13 +364,7 @@ traj_long <- tidyr::pivot_longer(segm_df, cols = c(W, W_eagle), names_to = "vari
 
 facet_labels <- c("orog" = "Orographic", "thermal" = "Thermal", "wave" = "Wave")
 
-# not applied limit on y axis, but could be done if need to zoom in 
-# # Combine both variables to get a common range for limits on axis y
-# y_vals <- c(traj_w$W, traj_w$W_eagle)
-# y_vals <- x_vals[!is.na(x_vals)]
-# 
-# # remove long tails removing first and last 0.1% of the data considered the common range
-# ylims <- quantile(x_vals, probs = c(0.001, 0.999))
+# not applied limit on y axis, but could be done if need to zoom in un-commenting  'coord_cartesian(ylim = xlims)' 
 
 e <- ggplot(traj_long, aes(x = variable, y = value, fill = variable)) +
   geom_violin(trim = FALSE, alpha = 0.7) +
@@ -381,7 +375,7 @@ e <- ggplot(traj_long, aes(x = variable, y = value, fill = variable)) +
   labs(x = NULL,
        y = "Vertical Wind Speed [m s-1]",
        fill = "Variable") +
-  coord_cartesian(ylim = xlims) + #ylims) +  if want to restrict to a different %, for now decided to have a similar range to the previous plot
+  # coord_cartesian(ylim = xlims) + 
   theme_minimal() +
   theme(
     text = element_text(size = 30),  
