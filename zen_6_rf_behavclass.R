@@ -779,9 +779,24 @@ ggsave(file.path(directory, "figures_july26", "roc_rf_balanced.pdf"),
 # save ggplot obj to reload if some fig tuning is necessary
 saveRDS(roc, file.path(directory, "figures_july26", "roc_rf_balanced.rds"))
 
+roc <- readRDS(file.path(directory, "figures_july26", "roc_rf_balanced.rds"))
+roc$layers
 
+# confirm layer order first 
+sapply(roc$layers, function(l) class(l$geom)[1])
+# "GeomLine" "GeomAbline" "GeomText"  <- annotate() is layer 3
 
+# edit the existing theme elements' sizes
+roc$theme$text$size         <- 30
+roc$theme$axis.title$size   <- 30
+roc$theme$axis.text$size    <- 30
+roc$theme$legend.title$size <- 30
+roc$theme$legend.text$size  <- 30
+roc$layers[[3]]$aes_params$size <- 7
 
+roc
+ggsave(file.path(directory, "figures_july26", "roc_rf_balanced.pdf"), 
+       plot = roc, width = 297, height = 210, units = "mm", device = "pdf")
 
 
 

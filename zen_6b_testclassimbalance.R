@@ -602,3 +602,4 @@ ggsave(file.path(directory, "figures_july26", "roc_rf.pdf"),
 # save ggplot obj to reload if some fig tuning is necessary
 saveRDS(roc, file.path(directory, "figures_july26", "roc_rf.rds"))
 
+roc <-loadRDS()
