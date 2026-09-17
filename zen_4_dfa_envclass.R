@@ -704,7 +704,7 @@ ggsave(file.path(directory, "figures_july26", "cm_dfa_10font.pdf"),
 # combined_df is the complete dataset with 29775 segments and all behavioral variables, but not used here
 # here, taken complete dataset with env data from COSMO and removed the segments that have already the labelling by Tom
 
-# env_cosmo from above
+# env_cosmo from above, line 209
 
 comp_gps <- env_cosmo[!env_cosmo$unique_segmID %in% sub_lab_7s$unique_segmID, ] # 572905
 # removed from the complete dataset only the certainly labelled segments, meaning that Tom' dynamic, unknown etc are left to be labelled by the automatized algorithm
@@ -841,7 +841,7 @@ segm_ls_check %>% filter(n_na_height == n_total)
 # 4:  Ettenberg22 (eobs 10539)_2191886024_22178_soar_7      57          57
 # 5:  Ettenberg22 (eobs 10539)_2191886024_22178_soar_9       6           6
 
-# for these 5 sgements, also U, V, windspeed cannot be annotated, but we know this issue, already addressed and corrected at the best possible on 15 july 26
+# for these 5 segments, also U, V, windspeed cannot be annotated, but we know this issue, already addressed and corrected at the best possible on 15 july 26
 
 # remove obs with NA values
 compsegm_df <- comp_env_df[complete.cases(comp_env_df), ] # 25161 segments

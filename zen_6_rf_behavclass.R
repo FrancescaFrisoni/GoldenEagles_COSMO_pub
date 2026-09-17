@@ -51,6 +51,8 @@ segm_pred <- segm_pred %>%
 # 1019          318        17167          183          322         5303          849
 
 # load here summary of segments with gps, acc and imu metrics
+# I am loading the complete summaries with 29775 segments because when I merge with segm_pred I need to have only the behavioural metrics and not yet the meterological ones
+# and it will be filtered to the 19035 surely predicted segments automatically
 combined_df <- readRDS("GPS_ACC_IMU_summaryvariables_28july.rds") # 29775 in 78 obs
 
 names(segm_pred)
@@ -78,8 +80,7 @@ summary_pred_sure$uplift_type <- factor(summary_pred_sure$uplift_type, levels=c(
 
 saveRDS(summary_pred_sure, "./uplift_classification/summarypredsure_15july26.rds") 
 # summary pred sure is the dataset I will run my rf with only behavioural variables
-
-
+# 19035 obs in 93 vars
 
 ##### 2. PCA algorirthm to select predictors for Random Forest #####
 
